@@ -111,7 +111,11 @@ label{font-weight:800;font-size:.95rem;display:grid;gap:6px}
 .rack button{aspect-ratio:1;background:var(--tuile);border:3px solid var(--tuile-bord);border-radius:9px;font-family:var(--display);font-weight:800;font-size:7.5cqw;color:var(--encre);position:relative;padding:0;line-height:1}
 .rack button small{position:absolute;right:8%;bottom:4%;font-family:var(--body);font-size:3cqw}
 .rack button.sel{transform:translateY(-6px);box-shadow:0 0 0 4px var(--vert)}
+.rack{touch-action:none;user-select:none;-webkit-user-select:none}
 .rack button.used{visibility:hidden}
+.rack button.dragging{opacity:.25}
+.ghost{position:fixed;z-index:50;width:56px;height:56px;margin:-28px 0 0 -28px;pointer-events:none;background:var(--tuile);border:3px solid var(--tuile-bord);border-radius:10px;display:grid;place-items:center;font-family:var(--display);font-weight:800;font-size:2rem;color:var(--encre);box-shadow:0 8px 18px rgb(0 0 0 / .25)}
+.cell.drop{outline:4px solid var(--vert);outline-offset:-4px}
 .rack .empty{aspect-ratio:1}
 .actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .actions .btn{font-size:1.05rem;padding:.55em .5em}
@@ -140,7 +144,7 @@ label{font-weight:800;font-size:.95rem;display:grid;gap:6px}
   <section class="regles">
     <h3 style="font-size:1.35rem">Comment on joue</h3>
     <ul>
-      <li>Touche une de tes lettres, puis touche une case du plateau pour l'y poser.</li>
+      <li>Touche une de tes lettres puis une case du plateau, ou fais glisser la lettre. Tu peux aussi faire glisser tes lettres sur ton chevalet pour les ranger et préparer ton mot.</li>
       <li>Le premier mot passe par l'étoile au centre. Les suivants doivent toucher les lettres déjà posées.</li>
       <li>Les lettres d'un mot sont sur la même ligne, sans trou. Puis on touche « Valider ».</li>
       <li>Le jeu vérifie le mot dans le dictionnaire. Un adulte peut accepter un mot refusé depuis la télé.</li>
@@ -211,7 +215,7 @@ label{font-weight:800;font-size:.95rem;display:grid;gap:6px}
       <div class="p-status" id="p-status"></div>
       <div class="board" id="p-board"></div>
       <div class="rack" id="p-rack"></div>
-      <p class="msg" id="p-msg">Touche une lettre, puis une case du plateau.</p>
+      <p class="msg" id="p-msg">Touche une lettre puis une case, ou fais-la glisser. Glisse tes lettres sur le chevalet pour préparer ton mot.</p>
       <div class="actions">
         <button class="btn vert wide" id="p-ok">Valider le mot</button>
         <button class="btn ghost" id="p-back">Reprendre mes lettres</button>
@@ -604,9 +608,50 @@ async function startPlayer(code,name,relay){
   function pendMap(){const m=new Map();pending.forEach((ri,ci)=>m.set(ci,rack[ri]));return m;}
   function renderRack(){
     const used=new Set(pending.values());
-    $("p-rack").innerHTML=order.map((ri)=>ri==null?`<span class="empty"></span>`:`<button data-r="${ri}" class="${used.has(ri)?"used":""} ${sel===ri?"sel":""}" aria-label="Lettre ${rack[ri]}">${rack[ri]}<small>${VAL[rack[ri]]}</small></button>`).join("")+Array(Math.max(0,RACK-order.length)).fill(`<span class="empty"></span>`).join("");
+    $("p-rack").innerHTML=order.map((ri)=>ri==null?`<span class="empty"></span>`:`<button data-r="${ri}" class="${used.has(ri)?"used":""} ${sel===ri?"sel":""} ${drag&&drag.moved&&drag.ri===ri?"dragging":""}" aria-label="Lettre ${rack[ri]}">${rack[ri]}<small>${VAL[rack[ri]]}</small></button>`).join("")+Array(Math.max(0,RACK-order.length)).fill(`<span class="empty"></span>`).join("");
   }
-  $("p-rack").onclick=e=>{const b=e.target.closest("button[data-r]");if(!b)return;const ri=Number(b.dataset.r);sel=ri;beep(520,.05);renderRack();};
+  /* Chevalet : toucher = choisir la lettre ; glisser = la déplacer sur le chevalet ou la poser sur le plateau */
+  let drag=null;
+  const rackEl=$("p-rack"),boardEl=$("p-board");
+  let dropCell=null;
+  const clearDrop=()=>{if(dropCell){dropCell.classList.remove("drop");dropCell=null;}};
+  rackEl.onpointerdown=e=>{
+    const b=e.target.closest("button[data-r]");if(!b||b.classList.contains("used"))return;
+    e.preventDefault();
+    drag={ri:Number(b.dataset.r),x:e.clientX,y:e.clientY,moved:false,ghost:null};
+    try{rackEl.setPointerCapture(e.pointerId);}catch(x){}
+  };
+  rackEl.onpointermove=e=>{
+    if(!drag)return;
+    if(!drag.moved){
+      if(Math.hypot(e.clientX-drag.x,e.clientY-drag.y)<8)return;
+      drag.moved=true;
+      const g=document.createElement("div");g.className="ghost";g.textContent=rack[drag.ri];document.body.appendChild(g);drag.ghost=g;
+      sel=drag.ri;renderRack();
+    }
+    drag.ghost.style.left=e.clientX+"px";drag.ghost.style.top=e.clientY+"px";
+    const el=document.elementFromPoint(e.clientX,e.clientY);
+    const slot=el&&el.closest("#p-rack > *");
+    clearDrop();
+    if(slot){
+      const kids=[...rackEl.children],to=kids.indexOf(slot),from=order.indexOf(drag.ri);
+      if(to>=0&&from>=0&&to!==from){order.splice(from,1);order.splice(Math.min(to,order.length),0,drag.ri);renderRack();}
+    }else{
+      const c=el&&el.closest("#p-board .cell");
+      if(c){dropCell=c;c.classList.add("drop");}
+    }
+  };
+  const endDrag=(e,cancel)=>{
+    if(!drag)return;
+    const d=drag;drag=null;
+    if(d.ghost)d.ghost.remove();
+    const cellEl=dropCell;clearDrop();
+    if(!d.moved){sel=d.ri;beep(520,.05);renderRack();return;}
+    if(!cancel&&cellEl){sel=d.ri;onCell([...boardEl.children].indexOf(cellEl));return;}
+    beep(440,.04);renderRack();
+  };
+  rackEl.onpointerup=e=>endDrag(e,false);
+  rackEl.onpointercancel=e=>endDrag(e,true);
   function onCell(i){
     if(!S||S.status==="attente"){msg("La partie n'a pas encore commencé : attends le départ sur la télé.","err");return;}
     if(S.status!=="jeu")return;
