@@ -378,7 +378,7 @@ document.addEventListener("click",e=>{const b=e.target.closest("[data-go]");if(b
 
 /* ---------- Relais MQTT ---------- */
 const CODE_CHARS="ABCDEFGHJKMNPQRSTUVWXYZ";
-const SITE="https://mots-malins.vercel.app/";
+const SITE="https://mots-malins-lilac.vercel.app/";
 const baseURL=()=>location.protocol==="https:"?location.href.split("#")[0].split("?")[0]:SITE;
 const BROKERS=[
   {url:"wss://broker.hivemq.com:8884/mqtt"},
@@ -592,8 +592,9 @@ async function startPlayer(code,name,relay){
   if(!pDraw)pDraw=makeBoard($("p-board"),i=>onCell(i));
   $("p-name").textContent=name;
   const base=topicBase(code);
-  let me="";try{me=localStorage.getItem("mots-pid-"+code)||"";}catch(e){}
-  if(!/^[a-z0-9]{4,24}$/.test(me)){me=uid().slice(0,16);try{localStorage.setItem("mots-pid-"+code,me);}catch(e){}}
+  const pidKey="mots-pid-"+code+"-"+name.toLowerCase();
+  let me="";try{me=localStorage.getItem(pidKey)||"";}catch(e){}
+  if(!/^[a-z0-9]{4,24}$/.test(me)){me=uid().slice(0,16);try{localStorage.setItem(pidKey,me);}catch(e){}}
   let client=null,alive=true,S=null,rack=[],order=[],sel=-1,pending=new Map(),lastState=0,confirm=null,hb=null,watch=null;
   const wait=$("p-wait"),game=$("p-game");
   const showWait=t=>{wait.hidden=false;game.hidden=true;wait.textContent=t;};
