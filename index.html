@@ -606,7 +606,7 @@ async function startPlayer(code,name,relay){
     const used=new Set(pending.values());
     $("p-rack").innerHTML=order.map((ri)=>ri==null?`<span class="empty"></span>`:`<button data-r="${ri}" class="${used.has(ri)?"used":""} ${sel===ri?"sel":""}" aria-label="Lettre ${rack[ri]}">${rack[ri]}<small>${VAL[rack[ri]]}</small></button>`).join("")+Array(Math.max(0,RACK-order.length)).fill(`<span class="empty"></span>`).join("");
   }
-  $("p-rack").onclick=e=>{const b=e.target.closest("button[data-r]");if(!b)return;const ri=Number(b.dataset.r);sel=sel===ri?-1:ri;beep(520,.05);renderRack();};
+  $("p-rack").onclick=e=>{const b=e.target.closest("button[data-r]");if(!b)return;const ri=Number(b.dataset.r);sel=ri;beep(520,.05);renderRack();};
   function onCell(i){
     if(!S||S.status!=="jeu")return;
     if(pending.has(i)){pending.delete(i);beep(330,.05);redraw();return;}
