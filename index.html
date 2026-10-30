@@ -114,7 +114,7 @@ label{font-weight:800;font-size:.95rem;display:grid;gap:6px}
 .rack{touch-action:none;user-select:none;-webkit-user-select:none}
 .rack button.used{visibility:hidden}
 .rack button.dragging{opacity:.25}
-.ghost{position:fixed;z-index:50;width:56px;height:56px;margin:-28px 0 0 -28px;pointer-events:none;background:var(--tuile);border:3px solid var(--tuile-bord);border-radius:10px;display:grid;place-items:center;font-family:var(--display);font-weight:800;font-size:2rem;color:var(--encre);box-shadow:0 8px 18px rgb(0 0 0 / .25)}
+.drag-ghost{position:fixed;z-index:50;width:56px;height:56px;margin:-28px 0 0 -28px;pointer-events:none;background:var(--tuile);border:3px solid var(--tuile-bord);border-radius:10px;display:grid;place-items:center;font-family:var(--display);font-weight:800;font-size:2rem;color:var(--encre);box-shadow:0 8px 18px rgb(0 0 0 / .25)}
 .cell.drop{outline:4px solid var(--vert);outline-offset:-4px}
 .rack .empty{aspect-ratio:1}
 .actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
@@ -626,7 +626,7 @@ async function startPlayer(code,name,relay){
     if(!drag.moved){
       if(Math.hypot(e.clientX-drag.x,e.clientY-drag.y)<8)return;
       drag.moved=true;
-      const g=document.createElement("div");g.className="ghost";g.textContent=rack[drag.ri];document.body.appendChild(g);drag.ghost=g;
+      const g=document.createElement("div");g.className="drag-ghost";g.textContent=rack[drag.ri];document.body.appendChild(g);drag.ghost=g;
       sel=drag.ri;renderRack();
     }
     drag.ghost.style.left=e.clientX+"px";drag.ghost.style.top=e.clientY+"px";
