@@ -65,7 +65,8 @@ label{font-weight:800;font-size:.95rem;display:grid;gap:6px}
 .cell.tw{background:var(--mot3)} .cell.dw,.cell.star{background:var(--mot2);color:var(--encre)}
 .cell.tl{background:var(--let3)} .cell.dl{background:var(--let2);color:var(--encre)}
 .cell.star::after{content:"★";font-size:5.4cqw;color:#fff}
-.cell.tap{cursor:pointer}
+.cell.tap{cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:rgba(31,138,76,.3)}
+.tile{pointer-events:none}
 .cell.tap:hover{outline:3px solid var(--or);outline-offset:-3px}
 .tile{position:absolute;inset:0;background:var(--tuile);border:.45cqw solid var(--tuile-bord);border-radius:5px;display:grid;place-items:center;color:var(--encre);font-family:var(--display);font-weight:800;font-size:5.6cqw;line-height:1}
 .tile small{position:absolute;right:7%;bottom:4%;font-family:var(--body);font-size:2.2cqw;font-weight:800}
@@ -210,7 +211,7 @@ label{font-weight:800;font-size:.95rem;display:grid;gap:6px}
       <div class="p-status" id="p-status"></div>
       <div class="board" id="p-board"></div>
       <div class="rack" id="p-rack"></div>
-      <p class="msg" id="p-msg"></p>
+      <p class="msg" id="p-msg">Touche une lettre, puis une case du plateau.</p>
       <div class="actions">
         <button class="btn vert wide" id="p-ok">Valider le mot</button>
         <button class="btn ghost" id="p-back">Reprendre mes lettres</button>
@@ -303,7 +304,7 @@ function makeBoard(el,onCell){
   el.innerHTML="";const cells=[];
   for(let i=0;i<N*N;i++){
     const d=document.createElement("div");d.className="cell "+BONUS[i];d.innerHTML=LABEL[BONUS[i]]||"";
-    if(onCell){d.classList.add("tap");d.addEventListener("click",()=>onCell(i));}
+    if(onCell){d.classList.add("tap");d.setAttribute("role","button");d.addEventListener("click",()=>onCell(i));}
     el.appendChild(d);cells.push(d);
   }
   let prev=[];
@@ -586,10 +587,9 @@ $("j-go").onclick=()=>{
   try{localStorage.setItem("mots-joueur",JSON.stringify({name}));}catch(e){}
   beep(660);startPlayer(code,name,hashRelay);
 };
-let pDraw=null;
 async function startPlayer(code,name,relay){
   show("play");keepAwake();
-  if(!pDraw)pDraw=makeBoard($("p-board"),i=>onCell(i));
+  const pDraw=makeBoard($("p-board"),i=>onCell(i));
   $("p-name").textContent=name;
   const base=topicBase(code);
   const pidKey="mots-pid-"+code+"-"+name.toLowerCase();
@@ -608,10 +608,12 @@ async function startPlayer(code,name,relay){
   }
   $("p-rack").onclick=e=>{const b=e.target.closest("button[data-r]");if(!b)return;const ri=Number(b.dataset.r);sel=ri;beep(520,.05);renderRack();};
   function onCell(i){
-    if(!S||S.status!=="jeu")return;
+    if(!S||S.status==="attente"){msg("La partie n'a pas encore commencé : attends le départ sur la télé.","err");return;}
+    if(S.status!=="jeu")return;
     if(pending.has(i)){pending.delete(i);beep(330,.05);redraw();return;}
-    if(board()[i])return;
-    if(sel<0){msg("Touche d'abord une de tes lettres.");return;}
+    if(board()[i]){msg("Cette case est déjà prise.","err");return;}
+    if(sel<0){const used=new Set(pending.values());sel=order.find(ri=>ri!=null&&!used.has(ri))??-1;}
+    if(sel<0){msg("Tu as posé toutes tes lettres.","err");return;}
     pending.set(i,sel);beep(620,.05);
     const used=new Set(pending.values());sel=order.find(ri=>ri!=null&&!used.has(ri))??-1;
     msg("");redraw();
@@ -634,7 +636,7 @@ async function startPlayer(code,name,relay){
   }
   function setRack(str){
     const letters=str.split("").filter(l=>VAL[l]);
-    rack=letters;order=letters.map((_,i)=>i);sel=-1;pending.clear();redraw();
+    rack=letters;order=letters.map((_,i)=>i);sel=letters.length?0:-1;pending.clear();redraw();
   }
   const send=m=>{try{if(client&&client.connected)client.publish(base+"/p/"+me,JSON.stringify(m));}catch(e){}};
   const hello=()=>send({type:"hello",name});
