@@ -634,7 +634,10 @@ async function startPlayer(code,name,relay){
     const mep=S.players.find(p=>p.id===me);$("p-score").textContent=(mep?.score||0)+" pt"+((mep?.score||0)>1?"s":"");
     $("p-scores").innerHTML=S.players.map(p=>`<span class="${p.id===S.turn?"turn":""}">${esc(p.name)} ${p.score}</span>`).join("");
   }
+  let rackStr=null;
   function setRack(str){
+    if(str===rackStr)return; // la télé renvoie le même chevalet régulièrement : on garde les lettres posées
+    rackStr=str;
     const letters=str.split("").filter(l=>VAL[l]);
     rack=letters;order=letters.map((_,i)=>i);sel=letters.length?0:-1;pending.clear();redraw();
   }
